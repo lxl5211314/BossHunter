@@ -1579,6 +1579,29 @@ def _handle_conversation(job: dict, config: dict, conversation: dict | None = No
     # Check if HR is asking for resume
     resume_request_from_card = _has_resume_request_card(messages)
     if _detect_resume_request(messages):
+        # 关闭定制 PDF 生成时：只识别请求并提醒用户手动点“同意”发送附件简历。
+        if not config.get("monitor", {}).get("generate_tailored_resume", True):
+            db = get_db()
+            already_recorded = _has_recorded_resume_request(db, job["id"], messages)
+            db.close()
+            if already_recorded:
+                console.print("[dim]    HR 要简历的请求已记录过，跳过重复提醒[/dim]")
+                close_tab(target_id)
+                return "skipped_existing_resume"
+
+            console.print("[bold yellow]    ⚠ HR 要简历：请手动点“同意”发送附件简历[/bold yellow]")
+            db = get_db()
+            history_detail = _build_reply_detail(
+                messages,
+                "HR 请求附件简历：请手动点“同意”并发送附件简历（已关闭自动生成定制 PDF）",
+                "needs_resume.v1",
+            )
+            update_job_status(db, job["id"], "needs_resume")
+            add_history(db, job["id"], "needs_resume", history_detail)
+            db.close()
+            close_tab(target_id)
+            return "needs_resume"
+
         console.print("[cyan]    HR要求简历，生成定制化简历...[/cyan]")
 
         db = get_db()
@@ -1928,6 +1951,22 @@ def _has_generated_resume_for_job(db, job_id: str) -> bool:
     status = _row_text(row, "status")
     resume_path = _row_text(row, "resume_path").strip()
     return status == "resume_sent" or bool(resume_path)
+
+
+def _has_recorded_resume_request(db, job_id: str, messages: list[dict]) -> bool:
+    """Return true when the same HR resume request was already recorded."""
+    row = db.execute(
+        """
+        SELECT detail FROM history
+        WHERE job_id = ? AND action = 'needs_resume'
+        ORDER BY id DESC LIMIT 1
+        """,
+        (job_id,),
+    ).fetchone()
+    if row is None:
+        return False
+    fingerprint = _reply_fingerprint_from_detail(_row_text(row, "detail"))
+    return bool(fingerprint) and fingerprint == _reply_fingerprint_from_messages(messages)
 
 
 def _has_follow_up_history(db, job_id: str) -> bool:
