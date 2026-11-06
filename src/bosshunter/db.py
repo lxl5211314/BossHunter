@@ -1149,7 +1149,8 @@ def _migrate_v1_4(conn: sqlite3.Connection) -> None:
         UPDATE jobs SET recruitment_type = CASE
             WHEN {searchable} LIKE '%校招%' OR {searchable} LIKE '%校园招聘%'
               OR {searchable} LIKE '%应届%' OR {searchable} LIKE '%毕业生%'
-              OR {searchable} LIKE '%管培生%' OR {searchable} LIKE '%实习生%' THEN 'campus'
+              OR {searchable} LIKE '%管培生%' OR {searchable} LIKE '%实习生%'
+              OR {searchable} LIKE '%秋招%' OR {searchable} GLOB '*[0-9]届*' THEN 'campus'
             WHEN {searchable} LIKE '%社招%' OR {searchable} LIKE '%社会招聘%' THEN 'experienced'
             ELSE 'unknown'
         END

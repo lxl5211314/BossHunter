@@ -193,7 +193,7 @@ JS_EXTRACT_LIST = """
 # One pattern feeds both the label extraction and the name clean-up in JS_EXTRACT_DETAIL (and the tests), so they cannot drift.
 HR_ACTIVE_PATTERN = "在线|刚刚活跃|今日活跃|本周活跃|本月活跃|半年前活跃|[0-9一二两三四五六七八九十]+(?:日|天|周|个?月)内活跃"
 
-JS_EXTRACT_DETAIL = """
+JS_EXTRACT_DETAIL = r"""
 (() => {
     const info = {};
     info.title = document.querySelector('.info-primary .name h1')?.textContent?.trim()
@@ -206,7 +206,7 @@ JS_EXTRACT_DETAIL = """
     info.experience = tagTexts[0] || '';
     info.education = tagTexts[1] || '';
     const pageText = [info.title, info.experience, document.querySelector('.job-sec-text')?.textContent || ''].join(' ');
-    info.recruitment_type = /校招|校园招聘|应届|毕业生|管培生/.test(pageText)
+    info.recruitment_type = /校招|校园招聘|应届|毕业生|管培生|秋招|\d+\s*届/.test(pageText)
         ? 'campus'
         : (/社招|社会招聘/.test(pageText) ? 'experienced' : 'unknown');
     info.jd = document.querySelector('.job-sec-text')?.textContent?.trim() || '';
