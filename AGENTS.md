@@ -157,4 +157,11 @@ Get-Content D:\aaa_boss\data\logs\daily_$(Get-Date -Format yyyyMMdd).log -Tail 2
 - 回填：DB 里 6 个 `unknown` 已改回 campus（共 campus 54 / experienced 11 / unknown 170）。
 - 注意：`job-name` 标题含「秋招」即算，评分仍按关键词+JD 打；纯「秋招」角标但标题不含秋招词的岗位（如截图 `ai开发工程师 秋招` 标题其实含「秋招」）能覆盖；若标题真不含秋招词，靠「秋招」关键词搜索进池。
 
+### v12 — 2026-11-06 09:00 任务再次空跑，改为「分离进程」跑链路
+- 现象：11-06 09:00 任务日志只写到 09:00:26「开始采集」就停了，LastTaskResult 又是 `0xC000013A`（进程被终止）；今日已投 0。
+- 判断：计划任务的 PowerShell 控制台被环境杀掉（非代码问题，机器未重启、8686/9222 都在线）；但脚本是**前台串行**跑 scrape→score→deliver，控制台一死整条链路就断。
+- 修复：把「采集→评分→自动投递」整条链路抽到 `scripts/run_daily.py`；`daily_morning.ps1` 只负责拉起 Chrome/连接/起 8686，然后用 `Start-Process` **分离进程**启动 `run_daily.py` 后立即退出（不再前台等待）。这样即使计划任务控制台被杀，run_daily.py 也独立跑完。手动运行：`.venv\Scripts\python.exe scripts/run_daily.py [--max 40]`。
+- 已开启 Task Scheduler 操作日志（`wevtutil set-log ... /enabled:true` 需管理员；当前拒绝访问，改由 `schtasks /Query /XML` 看设置）。
+- 恢复跑批：杀掉残留的多余 scrape 进程后手动 `run_daily.py --max 40`（09:30 启动），日志 `data\logs\run_daily_20261106.log`。
+
 > 后续每次改配置/改脚本，都在这节追加一条，写清「改了什么 / 为什么 / 结果」。
