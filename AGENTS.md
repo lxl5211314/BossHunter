@@ -147,4 +147,14 @@ Get-Content D:\aaa_boss\data\logs\daily_$(Get-Date -Format yyyyMMdd).log -Tail 2
 - 实测：北京单独采 12 个校招岗 + 秋招关键词 6 个；评分后 6 个 ready：新东方 90、BOSS直聘 87、数坤 86、中软国际 81、清枢 76、容芯 65。
 - 待观察：明天 09:00 任务跑完后，确认 `select city,count(*) from jobs group by city` 是否 5 个城市都有数据。
 
+### v11 — 2026-11-06 识别并优先投递「秋招/校招」标签岗位
+- 用户强调（m01604）：校招专区岗位明显存在，要求投带「秋招」标签的公司。
+- 排查：BOSS 列表页 `.job-card-box` 的「秋招」标签其实在**标题文字里**（如 `公司秋招补录`、`ai开发工程师 秋招`），不是独立角标（详情页 `.info-primary .name` 也无标签元素）；但采集的 `recruitment_type` 判定正则不含「秋招」「N届」，导致带秋招词的岗位被标成 `unknown`。
+- 修改（3 处一致规则）：
+  - `collection/models.py` `classify_recruitment_type` 增加 `秋招`、`\d+届` → campus；
+  - `collection/platforms/boss.py` `JS_EXTRACT_DETAIL` 正则同样加 `秋招|\d+届`；
+  - `db.py` 迁移回填 unknown 时同规则（`GLOB '*[0-9]届*'`）。
+- 回填：DB 里 6 个 `unknown` 已改回 campus（共 campus 54 / experienced 11 / unknown 170）。
+- 注意：`job-name` 标题含「秋招」即算，评分仍按关键词+JD 打；纯「秋招」角标但标题不含秋招词的岗位（如截图 `ai开发工程师 秋招` 标题其实含「秋招」）能覆盖；若标题真不含秋招词，靠「秋招」关键词搜索进池。
+
 > 后续每次改配置/改脚本，都在这节追加一条，写清「改了什么 / 为什么 / 结果」。
